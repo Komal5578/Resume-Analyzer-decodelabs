@@ -2,11 +2,13 @@
    RESUME ANALYZER API — routes/analyze.js
    POST /api/analyze route handler.
 
-   All analysis logic is in-memory (no database).
+   Analysis logic runs in-memory, then results are persisted
+   to SQLite via db/db.js.
    This module exports an Express Router.
    ============================================================ */
 
 const { Router } = require('express');
+const { persistAnalysis } = require('../db/db');
 
 const router = Router();
 
@@ -226,7 +228,22 @@ router.post('/analyze', (req, res, next) => {
 
     score = Math.round(Math.min(100, Math.max(0, score)));
 
-    // ── Response ────────────────────────────────────────────
+    // ── Persist to database ─────────────────────────────────
+    // Saves the analysis and all keywords in a single transaction.
+    // Non-critical: if persistence fails we still return the result.
+    try {
+      persistAnalysis(
+        trimmedResume,
+        hasJD ? trimmedJD : null,
+        score,
+        matchedKeywords,
+        missingKeywords
+      );
+    } catch (dbErr) {
+      console.error('Warning: failed to persist analysis to database:', dbErr.message);
+    }
+
+    // ── Response (unchanged) ────────────────────────────────
     return res.status(200).json({
       score,
       matchedKeywords: matchedKeywords.sort(),

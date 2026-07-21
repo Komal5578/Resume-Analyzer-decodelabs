@@ -1,11 +1,11 @@
 # Resume Analyzer API
 
-A lightweight REST API for analyzing resumes against job descriptions. Built with **Node.js** and **Express**.
+A lightweight REST API for analyzing resumes against job descriptions. Built with **Node.js**, **Express**, and **SQLite** (via `better-sqlite3`).
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+# Install dependencies (includes better-sqlite3 native module)
 npm install
 
 # Start the server (port 3001 by default)
@@ -15,7 +15,35 @@ npm start
 npm run dev
 ```
 
-The server starts at **http://localhost:3001**.
+The server starts at **http://localhost:3001**.  
+The SQLite database (`db/resume_analyzer.db`) is created automatically on first startup.
+
+## Database Schema
+
+```
+┌──────────────────────────────────────────────────────┐
+│  analyses                                            │
+├──────────────────────────────────────────────────────┤
+│  id              INTEGER  PRIMARY KEY AUTOINCREMENT  │
+│  resume_text     TEXT     NOT NULL                   │
+│  job_description TEXT     (nullable)                 │
+│  score           INTEGER  NOT NULL  CHECK(0..100)    │
+│  created_at      TEXT     DEFAULT current timestamp  │
+└──────────────────────────────────────────────────────┘
+        │
+        │ 1:N (ON DELETE CASCADE)
+        ▼
+┌──────────────────────────────────────────────────────┐
+│  analysis_keywords                                   │
+├──────────────────────────────────────────────────────┤
+│  id              INTEGER  PRIMARY KEY AUTOINCREMENT  │
+│  analysis_id     INTEGER  FK → analyses.id           │
+│  keyword         TEXT     NOT NULL                   │
+│  matched         INTEGER  0 or 1 (boolean)           │
+└──────────────────────────────────────────────────────┘
+```
+
+The schema is defined in `db/schema.sql` and applied automatically on startup via `CREATE TABLE IF NOT EXISTS`.
 
 ## Endpoints
 
@@ -36,7 +64,7 @@ curl http://localhost:3001/api/health
 
 ### `POST /api/analyze`
 
-Analyze a resume, optionally against a job description.
+Analyze a resume, optionally against a job description. Results are persisted to SQLite automatically.
 
 **Request body** (`Content-Type: application/json`):
 
@@ -94,13 +122,93 @@ curl -X POST http://localhost:3001/api/analyze \
 }
 ```
 
+---
+
+### `GET /api/analyses`
+
+List all past analyses (lightweight — no resume text).
+
+```bash
+curl http://localhost:3001/api/analyses
+```
+
+**Response** `200`:
+```json
+[
+  { "id": 3, "score": 82, "created_at": "2026-07-21 18:30:00" },
+  { "id": 2, "score": 65, "created_at": "2026-07-21 17:15:00" },
+  { "id": 1, "score": 48, "created_at": "2026-07-21 16:00:00" }
+]
+```
+
+---
+
+### `GET /api/analyses/:id`
+
+Get a full analysis with keywords.
+
+```bash
+curl http://localhost:3001/api/analyses/1
+```
+
+**Response** `200`:
+```json
+{
+  "id": 1,
+  "score": 82,
+  "resume_text": "John Doe — Software Engineer...",
+  "job_description": "We are looking for...",
+  "created_at": "2026-07-21 18:30:00",
+  "matchedKeywords": ["aws", "docker", "javascript"],
+  "missingKeywords": ["architecture"]
+}
+```
+
+**Response** `404`:
+```json
+{
+  "error": "Not found",
+  "message": "No analysis found with id 999."
+}
+```
+
+---
+
+### `DELETE /api/analyses/:id`
+
+Delete an analysis and its associated keywords (cascaded).
+
+```bash
+curl -X DELETE http://localhost:3001/api/analyses/1
+```
+
+**Response** `200`:
+```json
+{
+  "message": "Analysis 1 deleted successfully."
+}
+```
+
+**Response** `404`:
+```json
+{
+  "error": "Not found",
+  "message": "No analysis found with id 1."
+}
+```
+
 ## Project Structure
 
 ```
 backend/
-├── server.js          # Express app, middleware, error handling
+├── server.js              # Express app, middleware, error handling
 ├── routes/
-│   └── analyze.js     # POST /api/analyze route & analysis logic
+│   ├── analyze.js         # POST /api/analyze — analysis logic + persistence
+│   └── analyses.js        # GET/DELETE /api/analyses — CRUD for past analyses
+├── db/
+│   ├── schema.sql         # Table definitions (analyses, analysis_keywords)
+│   ├── db.js              # SQLite init, prepared statements, helpers
+│   └── resume_analyzer.db # SQLite database file (auto-created, gitignored)
 ├── package.json
 └── README.md
 ```

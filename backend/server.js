@@ -6,7 +6,9 @@
 
 const express = require('express');
 const cors = require('cors');
+require('./db/db'); // Initialize database & run schema on startup
 const analyzeRoutes = require('./routes/analyze');
+const analysesRoutes = require('./routes/analyses');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +44,9 @@ app.get('/api/health', (_req, res) => {
 // Resume analysis routes
 app.use('/api', analyzeRoutes);
 
+// Persisted analyses CRUD routes
+app.use('/api/analyses', analysesRoutes);
+
 // ── 404 Handler ────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ error: 'Endpoint not found' });
@@ -63,6 +68,9 @@ app.use((err, _req, res, _next) => {
 // ── Start Server ───────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 Resume Analyzer API running at http://localhost:${PORT}`);
-  console.log(`   Health check: GET  /api/health`);
-  console.log(`   Analyze:      POST /api/analyze\n`);
+  console.log(`   Health check:    GET    /api/health`);
+  console.log(`   Analyze:         POST   /api/analyze`);
+  console.log(`   List analyses:   GET    /api/analyses`);
+  console.log(`   Get analysis:    GET    /api/analyses/:id`);
+  console.log(`   Delete analysis: DELETE /api/analyses/:id\n`);
 });
