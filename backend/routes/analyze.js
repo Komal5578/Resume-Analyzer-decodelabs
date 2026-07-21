@@ -77,8 +77,9 @@ router.post('/analyze', (req, res, next) => {
     function tokenize(text) {
       return text
         .toLowerCase()
-        .replace(/[^a-z0-9\s\-+#.]/g, ' ')
+        .replace(/[^a-z0-9\s\-+#]/g, ' ')
         .split(/\s+/)
+        .map((w) => w.replace(/^[.\-]+|[.\-]+$/g, ''))  // strip leading/trailing dots & hyphens
         .filter((w) => w.length > 2);
     }
 
