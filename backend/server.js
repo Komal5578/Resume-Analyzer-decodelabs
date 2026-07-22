@@ -12,6 +12,13 @@ const analysesRoutes = require('./routes/analyses');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const allowedOrigins = new Set([
+  'http://localhost:5500',
+  'http://127.0.0.1:5500',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'null',
+]);
 
 // ── Middleware ──────────────────────────────────────────────
 
@@ -19,7 +26,17 @@ const PORT = process.env.PORT || 3001;
 app.use(express.json({ limit: '1mb' }));
 
 // Enable CORS for the frontend (adjust origin in production)
-app.use(cors());
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin ${origin}`));
+    },
+  })
+);
 
 // ── Request Logger ─────────────────────────────────────────
 // Logs: METHOD /path → STATUS  (duration)

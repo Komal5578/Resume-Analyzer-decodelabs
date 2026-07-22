@@ -31,15 +31,13 @@ console.log(`📦 SQLite database initialized at ${DB_PATH}`);
 
 // ── Prepared statements (cached for performance) ────────────
 
-/** Insert a new analysis row; returns { lastInsertRowid } */
 const insertAnalysis = db.prepare(`
   INSERT INTO analyses (resume_text, job_description, score)
   VALUES (?, ?, ?)
 `);
 
-/** Insert a single keyword row linked to an analysis */
 const insertKeyword = db.prepare(`
-  INSERT INTO analysis_keywords (analysis_id, keyword, matched)
+  INSERT INTO keywords (analysis_id, keyword, matched)
   VALUES (?, ?, ?)
 `);
 
@@ -56,7 +54,7 @@ const selectAnalysisById = db.prepare(`
 
 /** Fetch keywords for a given analysis_id */
 const selectKeywordsByAnalysisId = db.prepare(`
-  SELECT keyword, matched FROM analysis_keywords WHERE analysis_id = ?
+  SELECT keyword, matched FROM keywords WHERE analysis_id = ?
 `);
 
 /** Delete an analysis by id (CASCADE deletes keywords automatically) */

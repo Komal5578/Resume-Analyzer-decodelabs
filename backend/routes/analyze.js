@@ -106,9 +106,14 @@ router.post('/analyze', (req, res, next) => {
     for (const kw of jdKeywords) {
       if (resumeTokens.has(kw)) {
         matchedKeywords.push(kw);
-      } else {
-        missingKeywords.push(kw);
-      }
+        const analysis = analyzeResume(trimmedResume, jobDescription);
+        const analysisId = persistAnalysis(
+          trimmedResume,
+          typeof jobDescription === 'string' && jobDescription.trim().length > 0 ? jobDescription.trim() : null,
+          analysis.score,
+          analysis.matchedKeywords,
+          analysis.missingKeywords
+        );
     }
 
     // ── Section detection ───────────────────────────────────
@@ -123,15 +128,10 @@ router.post('/analyze', (req, res, next) => {
       }
     }
 
-    // ── Word count ──────────────────────────────────────────
-    const wordCount = trimmedResume.split(/\s+/).filter(Boolean).length;
-
-    // ── Warnings ────────────────────────────────────────────
-    const warnings = [];
-
-    // Section warnings
-    for (const name of sectionsMissing) {
-      warnings.push(`No "${name}" section detected.`);
+        return res.status(200).json({
+          id: analysisId,
+          ...analysis,
+        });
     }
 
     // Length warnings
@@ -231,20 +231,17 @@ router.post('/analyze', (req, res, next) => {
     // ── Persist to database ─────────────────────────────────
     // Saves the analysis and all keywords in a single transaction.
     // Non-critical: if persistence fails we still return the result.
-    try {
-      persistAnalysis(
-        trimmedResume,
-        hasJD ? trimmedJD : null,
-        score,
-        matchedKeywords,
-        missingKeywords
-      );
-    } catch (dbErr) {
-      console.error('Warning: failed to persist analysis to database:', dbErr.message);
-    }
+    const analysisId = persistAnalysis(
+      trimmedResume,
+      hasJD ? trimmedJD : null,
+      score,
+      matchedKeywords,
+      missingKeywords
+    );
 
     // ── Response (unchanged) ────────────────────────────────
     return res.status(200).json({
+      id: analysisId,
       score,
       matchedKeywords: matchedKeywords.sort(),
       missingKeywords: missingKeywords.sort(),

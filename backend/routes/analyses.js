@@ -75,6 +75,7 @@ router.get('/:id', (req, res, next) => {
       resume_text: analysis.resume_text,
       job_description: analysis.job_description,
       created_at: analysis.created_at,
+      keywords: keywordRows,
       matchedKeywords: matchedKeywords.sort(),
       missingKeywords: missingKeywords.sort(),
     });
